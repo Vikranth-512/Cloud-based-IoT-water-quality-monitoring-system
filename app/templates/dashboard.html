@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Quality Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gauge-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+        /* Fixed chart canvas sizing to avoid runaway height from Chart.js autosizing */
+        .chart-canvas {
+            width: 100%;
+            height: 320px; /* fixed visible height */
+            max-height: 480px;
+            display: block;
+            box-sizing: border-box;
+        }
+        .gauge-value {
+            position: absolute;
+            /* move value down by 40px from center */
+            top: calc(50% + 40px);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        .status-online { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation Header -->
+    <header class="bg-slate-800 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-xl font-semibold">Water Quality Monitoring</h1>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div id="status-indicator" class="flex items-center space-x-2">
+                        <div class="w-3 h-3 bg-green-500 rounded-full status-online"></div>
+                        <span class="text-sm">Online</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- EC Trend Chart -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">EC Trend (mS/cm)</h2>
+                <canvas id="ecChart" class="chart-canvas"></canvas>
+            </div>
+
+            <!-- Temperature Trend Chart -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Temperature Trend (°C)</h2>
+                <canvas id="tempChart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Lower Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- WQI Gauge -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 text-center">Water Quality Index</h2>
+                <div class="flex justify-center">
+                    <div class="gauge-container">
+                        <canvas id="wqiGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value text-teal-600" id="wqiValue">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Cards -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Current Metrics</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Total Records</span>
+                        <span class="text-lg font-semibold text-gray-800" id="totalRecords">--</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Latest Temperature</span>
+                        <span class="text-lg font-semibold text-gray-800" id="latestTemp">--°C</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Latest EC</span>
+                        <span class="text-lg font-semibold text-gray-800" id="latestEC">-- mS/cm</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Latest pH</span>
+                        <span class="text-lg font-semibold text-gray-800" id="latestPh">--</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Latest TDS</span>
+                        <span class="text-lg font-semibold text-gray-800" id="latestTDS">-- ppm</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600">Latest Salinity</span>
+                        <span class="text-lg font-semibold text-gray-800" id="latestSalinity">-- ppt</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Irrigation Status -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Irrigation Status</h2>
+                <div class="text-center py-8">
+                    <div id="irrigationIcon" class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center">
+                        <!-- Icon will be dynamically set -->
+                    </div>
+                    <div id="irrigationStatus" class="text-2xl font-bold mb-2">--</div>
+                    <div id="irrigationDescription" class="text-sm text-gray-600">Waiting for data...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global variables
+        let ecChart, tempChart, wqiGauge;
+        const API_BASE = '/api';
+
+        // Initialize charts
+        function initCharts() {
+            // EC Trend Chart
+            const ecCtx = document.getElementById('ecChart').getContext('2d');
+            ecChart = new Chart(ecCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'EC (mS/cm)',
+                        data: [],
+                        borderColor: '#1ABC9C',
+                        backgroundColor: 'rgba(26, 188, 156, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            // Fixed EC range (0 - 50 mS/cm)
+                            min: 0,
+                            max: 50
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false } // hide timestamp labels on x-axis
+                        }
+                    }
+                }
+            });
+
+            // Temperature Trend Chart
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            tempChart = new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: [],
+                        borderColor: '#E74C3C',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            // Fixed Temperature range (0 - 100 °C)
+                            min: 0,
+                            max: 100
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false } // hide timestamp labels on x-axis
+                        }
+                    }
+                }
+            });
+
+            // WQI Gauge
+            const wqiCtx = document.getElementById('wqiGauge').getContext('2d');
+            wqiGauge = new Chart(wqiCtx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#1ABC9C', '#E5E7EB'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    rotation: -90,
+                    circumference: 180,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        // Update WQI gauge
+        function updateWQIGauge(wqi) {
+            const percentage = Math.min(100, Math.max(0, wqi));
+            let color;
+            
+            if (wqi >= 80) color = '#10B981';
+            else if (wqi >= 50) color = '#F59E0B';
+            else color = '#EF4444';
+            
+            wqiGauge.data.datasets[0].data = [percentage, 100 - percentage];
+            wqiGauge.data.datasets[0].backgroundColor = [color, '#E5E7EB'];
+            wqiGauge.update();
+            
+            document.getElementById('wqiValue').textContent = wqi.toFixed(1);
+            document.getElementById('wqiValue').style.color = color;
+        }
+
+        // Update irrigation status
+        function updateIrrigationStatus(index) {
+            const statusEl = document.getElementById('irrigationStatus');
+            const descEl = document.getElementById('irrigationDescription');
+            const iconEl = document.getElementById('irrigationIcon');
+            
+            let bgColor, textColor, icon, description;
+            
+            switch(index) {
+                case 'Excellent':
+                    bgColor = 'bg-green-100';
+                    textColor = 'text-green-800';
+                    icon = '✓';
+                    description = 'Water quality is excellent for irrigation';
+                    break;
+                case 'Moderate':
+                    bgColor = 'bg-yellow-100';
+                    textColor = 'text-yellow-800';
+                    icon = '⚠';
+                    description = 'Water quality is moderate for irrigation';
+                    break;
+                case 'Unsuitable':
+                    bgColor = 'bg-red-100';
+                    textColor = 'text-red-800';
+                    icon = '✗';
+                    description = 'Water quality is unsuitable for irrigation';
+                    break;
+                default:
+                    bgColor = 'bg-gray-100';
+                    textColor = 'text-gray-800';
+                    icon = '?';
+                    description = 'Waiting for data...';
+            }
+            
+            statusEl.textContent = index || '--';
+            statusEl.className = `text-2xl font-bold mb-2 ${textColor}`;
+            descEl.textContent = description;
+            iconEl.className = `w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${bgColor} text-2xl`;
+            iconEl.textContent = icon;
+        }
+
+        // Fetch latest data
+        async function fetchLatestData() {
+            try {
+                const response = await fetch(`${API_BASE}/latest`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDashboard(data);
+                } else {
+                    console.error('Failed to fetch latest data');
+                }
+            } catch (error) {
+                console.error('Error fetching latest data:', error);
+            }
+        }
+
+        // Fetch historical data
+        async function fetchHistoricalData() {
+            try {
+                const response = await fetch(`${API_BASE}/history?limit=20`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateCharts(data);
+                } else {
+                    console.error('Failed to fetch historical data');
+                }
+            } catch (error) {
+                console.error('Error fetching historical data:', error);
+            }
+        }
+
+        // Fetch metrics
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/metrics`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('totalRecords').textContent = data.total_records;
+                }
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+            }
+        }
+
+        // Update dashboard with latest data
+        function updateDashboard(data) {
+            document.getElementById('latestTemp').textContent = `${data.temperature}°C`;
+            document.getElementById('latestEC').textContent = `${data.ec} mS/cm`;
+            document.getElementById('latestPh').textContent = data.ph != null ? data.ph.toFixed(2) : '--';
+            document.getElementById('latestTDS').textContent = `${data.tds} ppm`;
+            // Compute salinity = tds / 1000 (units: ppt ~ g/L)
+            const salinity = (typeof data.tds === 'number') ? (data.tds / 1000) : (parseFloat(data.tds) || 0) / 1000;
+            document.getElementById('latestSalinity').textContent = `${salinity.toFixed(3)} ppt`;
+            
+            updateWQIGauge(data.wqi);
+            updateIrrigationStatus(data.irrigation_index);
+        }
+
+        // Update charts with historical data
+        function updateCharts(data) {
+            // Use blank labels so timestamps do not appear on x-axis
+            const labels = data.map(() => '').reverse();
+            // Ensure numeric values
+            const ecData = data.map(d => parseFloat(d.ec) || 0).reverse();
+            const tempData = data.map(d => parseFloat(d.temperature) || 0).reverse();
+
+            // Update EC chart with fixed axis range
+            ecChart.data.labels = labels;
+            ecChart.data.datasets[0].data = ecData;
+            ecChart.options.scales.y.min = 0;
+            ecChart.options.scales.y.max = 50;
+            ecChart.update();
+
+            // Update Temperature chart with fixed axis range
+            tempChart.data.labels = labels;
+            tempChart.data.datasets[0].data = tempData;
+            tempChart.options.scales.y.min = 0;
+            tempChart.options.scales.y.max = 100;
+            tempChart.update();
+        }
+
+        // Initialize dashboard
+        async function initDashboard() {
+            initCharts();
+            await fetchLatestData();
+            await fetchHistoricalData();
+            await fetchMetrics();
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(async () => {
+            await fetchLatestData();
+            await fetchHistoricalData();
+            await fetchMetrics();
+        }, 30000);
+
+        // Start dashboard when page loads
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>

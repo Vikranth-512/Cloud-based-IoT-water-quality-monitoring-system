@@ -1,0 +1,55 @@
+# ---------------------------
+# Python
+# ---------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Python distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# ---------------------------
+# Visual Studio
+# ---------------------------
+.vs/
+
+# ---------------------------
+# VS Code (if used later)
+# ---------------------------
+.vscode/
+
+# ---------------------------
+# OS files
+# ---------------------------
+.DS_Store
+Thumbs.db
+
+# ---------------------------
+# Environment variables
+# ---------------------------
+.env
+
+
+# ---------------------------
+# Python testing cache
+# ---------------------------
+__pycache__/
+*.pyc
+.vs/
+*.db
+
+# ---------------------------
+# Temporary files
+# ---------------------------
+*.tmp
+*.temp
