@@ -117,16 +117,6 @@ This validates:
 - Data ingestion
 - All endpoint functionality
 
-## Deployment (Render.com)
-
-1. Create a new Web Service on Render
-2. Connect your GitHub repository
-3. Set environment variables:
-   - `DATABASE_URL`: PostgreSQL connection string
-   - `SECRET_KEY`: Random secret key
-4. Build Command: `pip install -r requirements.txt`
-5. Start Command: `gunicorn app.main:app`
-
 ## File Structure
 
 ```
@@ -194,15 +184,3 @@ Enable debug logging:
 import logging
 logging.basicConfig(level=logging.DEBUG)
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
